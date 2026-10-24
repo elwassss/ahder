@@ -1,0 +1,6 @@
+.env
+# Persistent local database and uploaded user media.
+data/
+uploads/
+node_modules/
+npm-debug.log*

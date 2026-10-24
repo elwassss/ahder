@@ -1,0 +1,26 @@
+{
+  "name": "ahder-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Ahder campus community API and web server",
+  "main": "ahder.njs",
+  "scripts": {
+    "start": "node -e \"process.env.AHDER_AUTOSTART='true'; require('./ahder.njs')\"",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.11",
+    "bcryptjs": "^3.0.2",
+    "dotenv": "^16.6.1",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.1.0",
+    "file-type": "^21.0.0",
+    "helmet": "^8.1.0",
+    "jose": "^6.1.0",
+    "multer": "^2.0.2",
+    "pg": "^8.16.3"
+  }
+}

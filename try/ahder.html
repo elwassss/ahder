@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f6f7fb">
+  <meta name="description" content="Ahder is your university community: share campus moments, meet people, and find events.">
+  <title>Ahder — Your campus, connected</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='12' fill='%236655e8'/%3E%3Ctext x='20' y='29' text-anchor='middle' font-family='Arial,sans-serif' font-size='29' font-style='italic' font-weight='800' fill='white'%3EA%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="shder.css">
+</head>
+<body>
+  <section class="auth-screen" id="authScreen">
+    <div class="auth-art">
+      <a class="auth-brand" href="#" aria-label="Ahder" data-auth-switch="signin">
+        <span class="brand-mark" aria-hidden="true">A</span>Ahder
+      </a>
+      <div class="auth-message">
+        <p class="welcome-eyebrow">YOUR CAMPUS. YOUR PEOPLE.</p>
+        <h1>Make your university days unforgettable.</h1>
+        <p>Meet your people, share the little moments, and find what’s happening around campus.</p>
+      </div>
+      <div class="auth-proof">
+        <span class="proof-avatars">
+          <img src="https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&w=80&h=80&q=80" alt="">
+          <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=80&h=80&q=80" alt="">
+          <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=80&h=80&q=80" alt="">
+        </span>
+        <span>A little campus feels a lot more connected.</span>
+      </div>
+    </div>
+    <div class="auth-panel">
+      <form class="auth-form" id="signInForm">
+        <h2>Welcome back</h2>
+        <p class="auth-subtitle">Sign in to catch up with your campus community.</p>
+        <div class="oauth-buttons" aria-label="Sign in with another account">
+          <a class="oauth-button" data-oauth-provider="google" href="/auth/google"><span class="oauth-brand google-brand" aria-hidden="true">G</span>Continue with Google</a>
+          <a class="oauth-button" data-oauth-provider="apple" href="/auth/apple"><span class="oauth-brand apple-brand" aria-hidden="true">A</span>Continue with Apple</a>
+        </div>
+        <div class="auth-divider">OR WITH EMAIL</div>
+        <label class="auth-field"><span>Email address</span><input type="email" name="email" placeholder="you@university.edu" autocomplete="email" required></label>
+        <label class="auth-field"><span>Password</span><input type="password" name="password" placeholder="Enter your password" autocomplete="current-password" minlength="6" required></label>
+        <button class="auth-submit" type="submit">Sign in</button>
+        <p class="auth-switch">New to Ahder? <button class="text-button" type="button" data-auth-switch="create">Create an account</button></p>
+        <div class="auth-divider">OR TRY THE DEMO</div>
+        <button class="demo-button" type="button" data-sign-in-demo>Explore Ahder as a guest →</button>
+        <p class="auth-note">Your account and campus posts are saved on the Ahder server and shared with other students.</p>
+      </form>
+      <form class="auth-form" id="createAccountForm" hidden>
+        <h2>Join your campus</h2>
+        <p class="auth-subtitle">Create a profile and make yourself at home.</p>
+        <div class="oauth-buttons" aria-label="Create an account with another provider">
+          <a class="oauth-button" data-oauth-provider="google" href="/auth/google"><span class="oauth-brand google-brand" aria-hidden="true">G</span>Sign up with Google</a>
+          <a class="oauth-button" data-oauth-provider="apple" href="/auth/apple"><span class="oauth-brand apple-brand" aria-hidden="true">A</span>Sign up with Apple</a>
+        </div>
+        <div class="auth-divider">OR WITH EMAIL</div>
+        <label class="auth-field"><span>Your name</span><input type="text" name="name" placeholder="Alex Morgan" autocomplete="name" minlength="2" maxlength="40" required></label>
+        <label class="auth-field"><span>University email</span><input type="email" name="email" placeholder="you@university.edu" autocomplete="email" required></label>
+        <label class="auth-field"><span>Create password</span><input type="password" name="password" placeholder="At least 8 characters" autocomplete="new-password" minlength="8" required></label>
+        <button class="auth-submit" type="submit">Create my account</button>
+        <p class="auth-switch">Already have an account? <button class="text-button" type="button" data-auth-switch="signin">Sign in</button></p>
+        <p class="auth-note">Create an account to publish posts that other Ahder users can see.</p>
+      </form>
+      <p class="auth-error" id="authError" role="alert" hidden></p>
+    </div>
+  </section>
+  <div class="app-shell" id="appShell" hidden>
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="Ahder home" data-nav="Home">
+        <span class="brand-mark" aria-hidden="true">A</span>
+        Ahder
+      </a>
+      <label class="search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+        <input class="search-input" id="searchInput" type="search" placeholder="Search people, posts, events..." aria-label="Search campus posts">
+      </label>
+      <div class="top-actions">
+        <button class="icon-button" type="button" aria-label="Open messages" data-nav="Messages">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8z"/></svg>
+        </button>
+        <button class="icon-button" type="button" aria-label="Notifications" data-action="notifications">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>
+          <span class="notification-dot"></span>
+        </button>
+        <button class="icon-button theme-toggle" type="button" aria-label="Switch to dark mode" title="Switch theme" data-action="theme">
+          <svg class="theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>
+          <svg class="theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" hidden><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5 8.5 8.5 0 1 0 20.5 14.5z"/></svg>
+        </button>
+        <button class="profile-trigger" type="button" aria-label="Open your profile" data-action="profile">
+          <img class="avatar user-avatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&h=100&q=80" alt="">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m4 6 4 4 4-4"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="left-rail" aria-label="Campus navigation">
+        <div class="side-card campus-card">
+          <p class="campus-label">Your campus</p>
+          <div class="campus-name">
+            <span class="campus-crest">N</span>
+            <span><span id="campusUniversity">Northwood University</span><small>Class of 2027 · Main campus</small></span>
+          </div>
+        </div>
+        <nav class="side-nav" aria-label="Main menu">
+          <a href="#" class="nav-link active" data-nav="Home">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg>Home
+          </a>
+          <a href="#" class="nav-link" data-nav="Explore">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.4-4.4M11 8v6m-3-3h6"/></svg>Explore
+          </a>
+          <a href="#" class="nav-link" data-nav="Messages">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8z"/></svg>Messages
+          </a>
+          <a href="#" class="nav-link" data-nav="Events">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>Events
+          </a>
+          <a href="#" class="nav-link" data-nav="Saved">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18l-6-4-6 4z"/></svg>Saved
+          </a>
+          <a href="#" class="nav-link" data-nav="Profile">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>My profile
+          </a>
+        </nav>
+        <button class="invite-friends-button" type="button" data-action="inviteFriends">Invite friends</button>
+        <section class="rail-section" aria-label="Your communities">
+          <h2 class="rail-heading">Your communities <button type="button" data-nav="Explore">See all</button></h2>
+          <a href="#" class="group-row" data-community="Design Society"><span class="group-icon pink">✦</span>Design Society</a>
+          <a href="#" class="group-row" data-community="Computer Science"><span class="group-icon blue">⌘</span>Computer Science</a>
+          <a href="#" class="group-row" data-community="Campus Runners"><span class="group-icon yellow">↗</span>Campus Runners</a>
+          <a href="#" class="group-row" data-community="Film Club"><span class="group-icon green">▶</span>Film Club</a>
+        </section>
+        <footer class="rail-footer">
+          <a href="#" data-info="About Ahder">About</a> · <a href="#" data-info="Community guidelines">Guidelines</a> · <a href="#" data-info="Privacy settings">Privacy</a><br>
+          © 2026 Ahder Campus
+        </footer>
+      </aside>
+
+      <section class="feed" aria-label="Campus feed">
+        <div class="welcome">
+          <div class="welcome-copy">
+            <p class="welcome-eyebrow">THURSDAY, OCTOBER 23</p>
+            <h1>Hey, Alex! 👋</h1>
+            <p>Your campus is buzzing. See what's happening today.</p>
+          </div>
+          <div class="welcome-emoji" aria-hidden="true">✨</div>
+        </div>
+
+        <form class="card composer" id="postForm">
+          <div class="composer-top">
+            <img class="avatar avatar-lg user-avatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&h=100&q=80" alt="">
+            <textarea id="postText" aria-label="Write a post" placeholder="What's happening on campus, Alex?" maxlength="500"></textarea>
+          </div>
+          <div class="pending-photo-preview" id="pendingPhotoPreview" hidden></div>
+          <div class="composer-bottom">
+            <div class="composer-tools">
+              <button class="tool-button" type="button" data-action="photo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>Photo
+              </button>
+              <button class="tool-button" type="button" data-action="video">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="13" height="14" rx="2"/><path d="m16 10 5-3v10l-5-3z"/></svg>Video
+              </button>
+              <button class="tool-button" type="button" data-action="eventComposer">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18m9 3 3 3m0-3-3 3"/></svg>Event
+              </button>
+              <button class="tool-button" type="button" data-action="pollComposer">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5m0 14h17M8 15V9m5 6V5m5 10v-4"/></svg>Poll
+              </button>
+            </div>
+            <button class="primary-button" type="submit">Post <span aria-hidden="true">↗</span></button>
+          </div>
+        </form>
+
+        <div class="feed-tabs" role="tablist" aria-label="Feed filter">
+          <button class="feed-tab active" type="button" role="tab" aria-selected="true" data-feed-tab="For you">For you</button>
+          <button class="feed-tab" type="button" role="tab" aria-selected="false" data-feed-tab="Following">Following</button>
+        </div>
+
+        <section class="page-view" id="pageView" hidden aria-live="polite"></section>
+
+        <article class="card post" data-post-id="maya-gallery" data-searchable="maya chen design society campus art gallery exhibition">
+          <header class="post-header">
+            <img class="avatar" src="https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&w=100&h=100&q=80" alt="">
+            <div class="post-author">
+              <div class="author-line"><span class="author-name">Maya Chen</span><span class="verified" aria-label="Verified">✓</span></div>
+              <div class="post-meta">Design Society · 24 min ago</div>
+            </div>
+            <button class="post-menu" type="button" aria-label="More post options" data-action="postMenu">···</button>
+          </header>
+          <p class="post-copy">We turned the old studio hallway into a mini gallery and I can't stop smiling 🥹 Huge shoutout to everyone who stayed late to make it happen. Come see it before critique week takes over! <a href="#" data-hashtag="CampusArt">#CampusArt</a> <a href="#" data-hashtag="DesignSociety">#DesignSociety</a></p>
+          <img class="post-image study-image" src="https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&w=1000&h=600&q=85" alt="Colorful art displayed in a gallery">
+          <div class="post-stats"><span><i class="reaction-dot">♥</i><i class="reaction-dot">✦</i><span><b class="like-count">48</b> reactions</span></span><span class="comment-count">12 comments</span></div>
+          <div class="post-actions">
+            <button class="post-action like-button" type="button" aria-pressed="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8z"/></svg>Like
+            </button>
+            <button class="post-action" type="button" data-action="comment">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8z"/></svg>Comment
+            </button>
+            <button class="post-action save-button" type="button" aria-pressed="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18l-6-4-6 4z"/></svg>Save
+            </button>
+          </div>
+        </article>
+
+        <article class="card post" data-post-id="jordan-buildathon" data-searchable="jordan lee computer science hackathon buildathon developers">
+          <header class="post-header">
+            <img class="avatar" src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=100&h=100&q=80" alt="">
+            <div class="post-author">
+              <div class="author-line"><span class="author-name">Jordan Lee</span></div>
+              <div class="post-meta">Computer Science · 1 hr ago</div>
+            </div>
+            <button class="post-menu" type="button" aria-label="More post options" data-action="postMenu">···</button>
+          </header>
+          <p class="post-copy">48 hours, way too much coffee, and one very sleepy team later — our first campus buildathon was a success! Big thanks to everyone who came out. Drop your project links below so we can cheer you on 💜 <a href="#" data-hashtag="BuildTogether">#BuildTogether</a></p>
+          <div class="post-stats"><span><i class="reaction-dot">♥</i><i class="reaction-dot">✦</i><span><b class="like-count">32</b> reactions</span></span><span class="comment-count">8 comments</span></div>
+          <div class="post-actions">
+            <button class="post-action like-button" type="button" aria-pressed="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8z"/></svg>Like
+            </button>
+            <button class="post-action" type="button" data-action="comment">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8z"/></svg>Comment
+            </button>
+            <button class="post-action save-button" type="button" aria-pressed="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18l-6-4-6 4z"/></svg>Save
+            </button>
+          </div>
+        </article>
+        <div class="empty-state card" id="emptyState">No posts match your search. Try another keyword.</div>
+      </section>
+
+      <aside class="right-rail" aria-label="Campus updates">
+        <section class="side-card">
+          <h2 class="widget-title">Upcoming events <a href="#" data-nav="Events">See all</a></h2>
+          <a class="event" href="#" data-event="Fall Fest on the Quad">
+            <span class="event-date"><strong>24</strong><span>OCT</span></span>
+            <span class="event-info"><strong>Fall Fest on the Quad</strong><small>4:00 PM · Central Green</small></span>
+          </a>
+          <a class="event" href="#" data-event="Design Portfolio Night">
+            <span class="event-date orange"><strong>26</strong><span>OCT</span></span>
+            <span class="event-info"><strong>Design Portfolio Night</strong><small>6:30 PM · Arts Building</small></span>
+          </a>
+          <a class="event" href="#" data-event="Open Mic & Coffee">
+            <span class="event-date green"><strong>28</strong><span>OCT</span></span>
+            <span class="event-info"><strong>Open Mic &amp; Coffee</strong><small>7:00 PM · The Commons</small></span>
+          </a>
+        </section>
+        <section class="side-card">
+          <h2 class="widget-title">Trending on campus <a href="#" data-nav="Explore">Explore</a></h2>
+          <a class="trend-row" href="#" data-trend="midtermszn"><span class="trend-number">01</span><span class="trend-copy"><strong>#midtermszn</strong><small>284 posts this week</small></span></a>
+          <a class="trend-row" href="#" data-trend="campusart"><span class="trend-number">02</span><span class="trend-copy"><strong>#campusart</strong><small>126 posts this week</small></span></a>
+          <a class="trend-row" href="#" data-trend="roommatefinds"><span class="trend-number">03</span><span class="trend-copy"><strong>#roommatefinds</strong><small>89 posts this week</small></span></a>
+        </section>
+        <section class="side-card people-card">
+          <h2 class="widget-title">People you may know <a href="#" data-action="people">See all</a></h2>
+          <div class="person">
+            <img class="avatar avatar-sm" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&h=100&q=80" alt="">
+            <span class="person-info"><strong>Priya Patel</strong><small>Biology · 2 mutual friends</small></span>
+            <button class="follow-button" type="button" aria-label="Follow Priya Patel" aria-pressed="false">+</button>
+          </div>
+          <div class="person">
+            <img class="avatar avatar-sm" src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=100&h=100&q=80" alt="">
+            <span class="person-info"><strong>Mateo Rivera</strong><small>Film Club · 5 mutual friends</small></span>
+            <button class="follow-button" type="button" aria-label="Follow Mateo Rivera" aria-pressed="false">+</button>
+          </div>
+          <div class="person">
+            <img class="avatar avatar-sm" src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=100&h=100&q=80" alt="">
+            <span class="person-info"><strong>Amara Okafor</strong><small>Psychology · 1 mutual friend</small></span>
+            <button class="follow-button" type="button" aria-label="Follow Amara Okafor" aria-pressed="false">+</button>
+          </div>
+        </section>
+      </aside>
+    </main>
+    <input type="file" id="photoInput" accept="image/*" hidden>
+    <input type="file" id="videoInput" accept="video/*" hidden>
+    <input type="file" id="profilePhotoInput" accept="image/*" hidden>
+    <input type="file" id="profileBannerInput" accept="image/*" hidden>
+    <div class="modal-backdrop" id="modalBackdrop" hidden>
+      <section class="modal-card" id="modalCard" role="dialog" aria-modal="true" aria-labelledby="modalTitle"></section>
+    </div>
+    <button class="back-to-top" id="backToTop" type="button" aria-label="Back to top" title="Back to top">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+    </button>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </div>
+
+  <script src="ahder.js" defer></script>
+</body>
+</html>
