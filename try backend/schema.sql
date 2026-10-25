@@ -2,6 +2,7 @@
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY,
   name TEXT NOT NULL,
+  username TEXT,
   email TEXT NOT NULL UNIQUE,
   password_hash TEXT,
   university TEXT NOT NULL DEFAULT 'Northwood University',
@@ -15,6 +16,12 @@ CREATE TABLE IF NOT EXISTS users (
   pro_expires_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT;
+UPDATE users
+SET username = lower(regexp_replace(split_part(email, '@', 1), '[^a-z0-9_]+', '_', 'g'))
+  || '_' || left(replace(id::text, '-', ''), 6)
+WHERE username IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS users_username_idx ON users(lower(username));
 ALTER TABLE users ADD COLUMN IF NOT EXISTS banner_url TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS pro_status TEXT NOT NULL DEFAULT 'free';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS pro_expires_at TIMESTAMPTZ;
@@ -97,6 +104,30 @@ CREATE TABLE IF NOT EXISTS direct_messages (
 );
 CREATE INDEX IF NOT EXISTS direct_messages_sender_idx ON direct_messages(sender_id, recipient_id, created_at);
 CREATE INDEX IF NOT EXISTS direct_messages_recipient_idx ON direct_messages(recipient_id, sender_id, created_at);
+
+CREATE TABLE IF NOT EXISTS group_chats (
+  id UUID PRIMARY KEY,
+  name TEXT NOT NULL CHECK (length(name) BETWEEN 2 AND 60),
+  created_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS group_chat_members (
+  group_id UUID NOT NULL REFERENCES group_chats(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (group_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS group_chat_members_user_idx ON group_chat_members(user_id, group_id);
+
+CREATE TABLE IF NOT EXISTS group_chat_messages (
+  id UUID PRIMARY KEY,
+  group_id UUID NOT NULL REFERENCES group_chats(id) ON DELETE CASCADE,
+  sender_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  body TEXT NOT NULL CHECK (length(body) BETWEEN 1 AND 1000),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS group_chat_messages_group_idx ON group_chat_messages(group_id, created_at, id);
 
 CREATE TABLE IF NOT EXISTS campus_events (
   id UUID PRIMARY KEY,

@@ -40,7 +40,7 @@ Never commit `.env`, OAuth keys, uploaded media, or database files. Deploy behin
 
 ## Profiles, follows, messages, and Pro
 
-Signed-in users can search the student directory, open public profiles, follow or unfollow accounts, browse a Following feed, and view posts on each profile. Users can permanently delete their own posts, but cannot delete posts belonging to other accounts. Profile owners can upload an image banner (up to 8 MB) as well as an avatar. Direct messages are private, text-only conversations between two accounts and are stored in the application database.
+Signed-in users choose a unique username during registration and can search the student directory by username (including `@username`), open public profiles, follow or unfollow accounts, browse a Following feed, and view posts on each profile. On phones, the three-dot navigation button opens the hidden sidebar. Users can permanently delete their own posts, but cannot delete posts belonging to other accounts. Profile owners can upload an image banner (up to 8 MB) as well as an avatar. Direct messages and member-only group chats are text-only and stored in the application database.
 
 The schema stores Pro account status, but billing is intentionally unavailable until a payment provider, subscription price, and billing period are selected and configured. The upgrade endpoint returns an unavailable response; it does not grant Pro access or collect payment.
 
@@ -51,6 +51,7 @@ The schema stores Pro account status, but billing is intentionally unavailable u
 - `POST /api/me/banner`
 - `GET /api/people`, `GET /api/people/:id`, `POST /api/people/:id/follow`
 - `GET /api/messages/conversations`, `GET/POST /api/messages/:userId`
+- `GET/POST /api/groups`, `GET /api/groups/:id`, `POST /api/groups/:id/messages`
 - `POST /api/me/pro/checkout` (unavailable until billing is configured)
 - `GET/POST /api/posts`, `POST /api/posts/:id/comments`, `POST /api/posts/:id/like`, `POST /api/posts/:id/save`, `POST /api/posts/:id/vote`
 - `DELETE /api/posts/:id` (only the post owner can delete a post)

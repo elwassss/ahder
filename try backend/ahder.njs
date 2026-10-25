@@ -30,6 +30,17 @@ function randomToken(size = 32) {
   return crypto.randomBytes(size).toString("base64url");
 }
 
+async function availableUsername(db, value) {
+  const base = String(value || "student").toLowerCase().replace(/[^a-z0-9_]/g, "_").replace(/^_+|_+$/g, "").slice(0, 18) || "student";
+  let username = base;
+  let suffix = 1;
+  while ((await db.query("SELECT 1 FROM users WHERE lower(username) = $1", [username])).rows.length) {
+    const ending = `_${suffix++}`;
+    username = `${base.slice(0, 24 - ending.length)}${ending}`;
+  }
+  return username;
+}
+
 function hashToken(token) {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
@@ -42,6 +53,7 @@ function publicUser(row) {
   return {
     id: row.id,
     name: row.name,
+    username: row.username,
     email: row.email,
     university: row.university,
     major: row.major,
@@ -227,7 +239,7 @@ function makeApp({ db, uploadsDirectory = uploadsDir, webRoot = webDir, producti
       return;
     }
     const result = await db.query(
-      `SELECT u.id, u.name, u.email, u.university, u.major, u.bio, u.avatar_url, u.banner_url, u.pro_status, u.pro_expires_at
+      `SELECT u.id, u.name, u.username, u.email, u.university, u.major, u.bio, u.avatar_url, u.banner_url, u.pro_status, u.pro_expires_at
        FROM sessions s JOIN users u ON u.id = s.user_id
        WHERE s.token_hash = $1 AND s.expires_at > NOW()`,
       [hashToken(token)]
@@ -259,7 +271,7 @@ function makeApp({ db, uploadsDirectory = uploadsDir, webRoot = webDir, producti
 
   async function userById(id) {
     const result = await db.query(
-      "SELECT id, name, email, university, major, bio, avatar_url, banner_url, pro_status, pro_expires_at FROM users WHERE id = $1",
+      "SELECT id, name, username, email, university, major, bio, avatar_url, banner_url, pro_status, pro_expires_at FROM users WHERE id = $1",
       [id]
     );
     return result.rows[0] ? publicUser(result.rows[0]) : null;
@@ -348,7 +360,7 @@ function makeApp({ db, uploadsDirectory = uploadsDir, webRoot = webDir, producti
   async function findOrCreateOAuthUser(provider, identity) {
     const column = provider === "google" ? "google_sub" : "apple_sub";
     const existing = await db.query(
-      `SELECT id, name, email, university, major, bio, avatar_url, banner_url, pro_status, pro_expires_at
+      `SELECT id, name, username, email, university, major, bio, avatar_url, banner_url, pro_status, pro_expires_at
        FROM users WHERE ${column} = $1 OR email = $2`,
       [identity.subject, identity.email]
     );
@@ -360,8 +372,8 @@ function makeApp({ db, uploadsDirectory = uploadsDir, webRoot = webDir, producti
     }
     const id = crypto.randomUUID();
     await db.query(
-      `INSERT INTO users (id, name, email, ${column}) VALUES ($1, $2, $3, $4)`,
-      [id, identity.name || identity.email.split("@")[0], identity.email, identity.subject]
+      `INSERT INTO users (id, name, username, email, ${column}) VALUES ($1, $2, $3, $4, $5)`,
+      [id, identity.name || identity.email.split("@")[0], await availableUsername(db, identity.email.split("@")[0]), identity.email, identity.subject]
     );
     return id;
   }
@@ -381,7 +393,7 @@ function makeApp({ db, uploadsDirectory = uploadsDir, webRoot = webDir, producti
       return;
     }
     const result = await db.query(
-      `SELECT u.id, u.name, u.email, u.university, u.major, u.bio, u.avatar_url, u.banner_url, u.pro_status, u.pro_expires_at
+      `SELECT u.id, u.name, u.username, u.email, u.university, u.major, u.bio, u.avatar_url, u.banner_url, u.pro_status, u.pro_expires_at
        FROM sessions s JOIN users u ON u.id = s.user_id
        WHERE s.token_hash = $1 AND s.expires_at > NOW()`,
       [hashToken(decodeURIComponent(token))]
@@ -391,22 +403,24 @@ function makeApp({ db, uploadsDirectory = uploadsDir, webRoot = webDir, producti
 
   app.post("/api/auth/register", jsonParser, asyncRoute(async (req, res) => {
     const name = String(req.body.name || "").trim();
+    const username = String(req.body.username || "").trim().toLowerCase();
     const email = normalizeEmail(req.body.email);
     const password = String(req.body.password || "");
-    if (name.length < 2 || name.length > 40 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || password.length < 8 || password.length > 200) {
-      res.status(400).json({ error: "Enter your name, a valid email, and a password of at least 8 characters." });
+    if (name.length < 2 || name.length > 40 || !/^[a-z0-9_]{3,24}$/.test(username)
+      || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || password.length < 8 || password.length > 200) {
+      res.status(400).json({ error: "Enter your name, a username (3–24 letters, numbers, or underscores), a valid email, and a password of at least 8 characters." });
       return;
     }
     const id = crypto.randomUUID();
     const passwordHash = await bcrypt.hash(password, 12);
     try {
       await db.query(
-        "INSERT INTO users (id, name, email, password_hash) VALUES ($1, $2, $3, $4)",
-        [id, name, email, passwordHash]
+        "INSERT INTO users (id, name, username, email, password_hash) VALUES ($1, $2, $3, $4, $5)",
+        [id, name, username, email, passwordHash]
       );
     } catch (error) {
       if (error.code === "23505") {
-        res.status(409).json({ error: "An account with that email already exists. Please sign in." });
+        res.status(409).json({ error: "That email or username is already in use." });
         return;
       }
       throw error;
@@ -437,9 +451,10 @@ function makeApp({ db, uploadsDirectory = uploadsDir, webRoot = webDir, producti
     const lookup = await db.query("SELECT id FROM users WHERE email = $1", [email]);
     const id = lookup.rows[0]?.id || crypto.randomUUID();
     if (!lookup.rows.length) {
+      const username = await availableUsername(db, "alex");
       await db.query(
-        "INSERT INTO users (id, name, email, university, major, bio) VALUES ($1, $2, $3, $4, $5, $6)",
-        [id, "Alex Morgan", email, "Northwood University", "Design & Media", "Making things, meeting people, and finding the best coffee on campus."]
+        "INSERT INTO users (id, name, username, email, university, major, bio) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+        [id, "Alex Morgan", username, email, "Northwood University", "Design & Media", "Making things, meeting people, and finding the best coffee on campus."]
       );
     }
     await setSession(res, id);
@@ -509,18 +524,28 @@ function makeApp({ db, uploadsDirectory = uploadsDir, webRoot = webDir, producti
   app.patch("/api/me", requireUser, jsonParser, asyncRoute(async (req, res) => {
     const values = {
       name: String(req.body.name || "").trim(),
+      username: String(req.body.username || "").trim().toLowerCase(),
       university: String(req.body.university || "").trim(),
       major: String(req.body.major || "").trim(),
       bio: String(req.body.bio || "").trim()
     };
-    if (values.name.length < 2 || values.name.length > 40 || values.university.length > 70 || values.major.length > 70 || values.bio.length > 220) {
-      res.status(400).json({ error: "Check your profile details and try again." });
+    if (values.name.length < 2 || values.name.length > 40 || !/^[a-z0-9_]{3,24}$/.test(values.username)
+      || values.university.length > 70 || values.major.length > 70 || values.bio.length > 220) {
+      res.status(400).json({ error: "Check your profile details and username (3–24 letters, numbers, or underscores)." });
       return;
     }
-    await db.query(
-      "UPDATE users SET name = $1, university = $2, major = $3, bio = $4 WHERE id = $5",
-      [values.name, values.university, values.major, values.bio, req.user.id]
-    );
+    try {
+      await db.query(
+        "UPDATE users SET name = $1, username = $2, university = $3, major = $4, bio = $5 WHERE id = $6",
+        [values.name, values.username, values.university, values.major, values.bio, req.user.id]
+      );
+    } catch (error) {
+      if (error.code === "23505") {
+        res.status(409).json({ error: "That username is already in use." });
+        return;
+      }
+      throw error;
+    }
     res.json({ user: await userById(req.user.id) });
   }));
 
@@ -756,13 +781,14 @@ function makeApp({ db, uploadsDirectory = uploadsDir, webRoot = webDir, producti
   }));
 
   app.get("/api/people", requireUser, asyncRoute(async (req, res) => {
-    const query = `%${String(req.query.q || "").slice(0, 60)}%`;
+    const query = String(req.query.q || "").trim().replace(/^@/, "").slice(0, 60);
+    const pattern = `%${query}%`;
     const people = await db.query(
-      `SELECT u.id, u.name, u.university, u.major, u.avatar_url,
+      `SELECT u.id, u.name, u.username, u.university, u.major, u.avatar_url,
               EXISTS(SELECT 1 FROM follows f WHERE f.follower_id = $1 AND f.followed_id = u.id) AS following
-       FROM users u WHERE u.id <> $1 AND ($2 = '%%' OR u.name ILIKE $2 OR u.university ILIKE $2 OR u.major ILIKE $2)
-       ORDER BY u.name LIMIT 50`,
-      [req.user.id, query]
+       FROM users u WHERE u.id <> $1 AND ($2 = '' OR u.username ILIKE $3 OR u.name ILIKE $3 OR u.university ILIKE $3 OR u.major ILIKE $3)
+       ORDER BY CASE WHEN lower(u.username) = lower($2) THEN 0 ELSE 1 END, u.name LIMIT 50`,
+      [req.user.id, query, pattern]
     );
     res.json({ people: people.rows });
   }));
@@ -793,7 +819,7 @@ function makeApp({ db, uploadsDirectory = uploadsDir, webRoot = webDir, producti
       return;
     }
     const result = await db.query(
-      `SELECT u.id, u.name, u.university, u.major, u.bio, u.avatar_url, u.banner_url, u.pro_status, u.pro_expires_at,
+      `SELECT u.id, u.name, u.username, u.university, u.major, u.bio, u.avatar_url, u.banner_url, u.pro_status, u.pro_expires_at,
               (SELECT COUNT(*)::int FROM follows f WHERE f.followed_id = u.id) AS follower_count,
               (SELECT COUNT(*)::int FROM follows f WHERE f.follower_id = u.id) AS following_count,
               EXISTS(SELECT 1 FROM follows f WHERE f.follower_id = $1 AND f.followed_id = u.id) AS following
@@ -809,6 +835,7 @@ function makeApp({ db, uploadsDirectory = uploadsDir, webRoot = webDir, producti
       profile: {
         id: profile.id,
         name: profile.name,
+        username: profile.username,
         university: profile.university,
         major: profile.major,
         bio: profile.bio,
@@ -848,6 +875,110 @@ function makeApp({ db, uploadsDirectory = uploadsDir, webRoot = webDir, producti
         lastAt: person.last_at
       }))
     });
+  }));
+
+  app.get("/api/groups", requireUser, asyncRoute(async (req, res) => {
+    const groups = await db.query(
+      `SELECT g.id, g.name, COUNT(DISTINCT all_members.user_id)::int AS member_count,
+              (SELECT m.body FROM group_chat_messages m WHERE m.group_id = g.id ORDER BY m.created_at DESC, m.id DESC LIMIT 1) AS last_message,
+              (SELECT m.created_at FROM group_chat_messages m WHERE m.group_id = g.id ORDER BY m.created_at DESC, m.id DESC LIMIT 1) AS last_at
+       FROM group_chats g
+       JOIN group_chat_members mine ON mine.group_id = g.id AND mine.user_id = $1
+       JOIN group_chat_members all_members ON all_members.group_id = g.id
+       GROUP BY g.id
+       ORDER BY last_at DESC NULLS LAST, g.created_at DESC`,
+      [req.user.id]
+    );
+    res.json({
+      groups: groups.rows.map((group) => ({
+        id: group.id,
+        name: group.name,
+        memberCount: group.member_count,
+        lastMessage: group.last_message || "Group created",
+        lastAt: group.last_at
+      }))
+    });
+  }));
+
+  app.post("/api/groups", requireUser, jsonParser, asyncRoute(async (req, res) => {
+    const name = String(req.body.name || "").trim();
+    const requestedIds = req.body.memberIds;
+    if (name.length < 2 || name.length > 60 || !Array.isArray(requestedIds)
+      || requestedIds.length < 2 || requestedIds.length > 19
+      || requestedIds.some((id) => typeof id !== "string" || !uuidPattern.test(id) || id === req.user.id)
+      || new Set(requestedIds).size !== requestedIds.length) {
+      res.status(400).json({ error: "Choose a group name and at least two other people (up to 19)." });
+      return;
+    }
+    const found = await db.query("SELECT id FROM users WHERE id = ANY($1::uuid[])", [requestedIds]);
+    if (found.rows.length !== requestedIds.length) {
+      res.status(400).json({ error: "One or more selected people could not be found." });
+      return;
+    }
+    const id = crypto.randomUUID();
+    await db.query("INSERT INTO group_chats (id, name, created_by) VALUES ($1, $2, $3)", [id, name, req.user.id]);
+    for (const userId of [req.user.id, ...requestedIds]) {
+      await db.query("INSERT INTO group_chat_members (group_id, user_id) VALUES ($1, $2)", [id, userId]);
+    }
+    res.status(201).json({ group: { id, name, memberCount: requestedIds.length + 1 } });
+  }));
+
+  app.get("/api/groups/:id", requireUser, asyncRoute(async (req, res) => {
+    if (!uuidPattern.test(req.params.id)) {
+      res.status(400).json({ error: "That group ID is invalid." });
+      return;
+    }
+    const groupResult = await db.query(
+      `SELECT g.id, g.name FROM group_chats g
+       JOIN group_chat_members mine ON mine.group_id = g.id AND mine.user_id = $1
+       WHERE g.id = $2`,
+      [req.user.id, req.params.id]
+    );
+    if (!groupResult.rows.length) {
+      res.status(404).json({ error: "Group not found." });
+      return;
+    }
+    const [members, messages] = await Promise.all([
+      db.query(
+        `SELECT u.id, u.name, u.username, u.avatar_url AS avatar
+         FROM group_chat_members m JOIN users u ON u.id = m.user_id
+         WHERE m.group_id = $1 ORDER BY u.name`,
+        [req.params.id]
+      ),
+      db.query(
+        `SELECT m.id, m.sender_id, m.body, m.created_at, u.name AS sender_name
+         FROM group_chat_messages m JOIN users u ON u.id = m.sender_id
+         WHERE m.group_id = $1 ORDER BY m.created_at, m.id`,
+        [req.params.id]
+      )
+    ]);
+    res.json({ group: groupResult.rows[0], members: members.rows, messages: messages.rows });
+  }));
+
+  app.post("/api/groups/:id/messages", requireUser, jsonParser, asyncRoute(async (req, res) => {
+    const body = String(req.body.body || "").trim();
+    if (!uuidPattern.test(req.params.id)) {
+      res.status(400).json({ error: "That group ID is invalid." });
+      return;
+    }
+    if (!body || body.length > 1000) {
+      res.status(400).json({ error: "Messages must be between 1 and 1000 characters." });
+      return;
+    }
+    const membership = await db.query(
+      "SELECT 1 FROM group_chat_members WHERE group_id = $1 AND user_id = $2",
+      [req.params.id, req.user.id]
+    );
+    if (!membership.rows.length) {
+      res.status(404).json({ error: "Group not found." });
+      return;
+    }
+    const result = await db.query(
+      `INSERT INTO group_chat_messages (id, group_id, sender_id, body)
+       VALUES ($1, $2, $3, $4) RETURNING id, sender_id, body, created_at`,
+      [crypto.randomUUID(), req.params.id, req.user.id, body]
+    );
+    res.status(201).json({ message: { ...result.rows[0], sender_name: req.user.name } });
   }));
 
   app.get("/api/messages/:userId", requireUser, asyncRoute(async (req, res) => {

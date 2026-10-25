@@ -48,11 +48,11 @@ async function request(url, { cookie, ...options } = {}) {
   };
 }
 
-async function register(name, email) {
+async function register(name, email, username = name.toLowerCase().replace(/[^a-z0-9]+/g, "_")) {
   const result = await request("/api/auth/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, email, password: "password123" })
+    body: JSON.stringify({ name, username, email, password: "password123" })
   });
   assert.equal(result.response.status, 201);
   return { user: result.body.user, cookie: result.cookie };
@@ -62,10 +62,12 @@ test("users can browse profiles, follow, see posts, and exchange private DMs", a
   const alice = await register("Alice Campus", "alice@example.edu");
   const bob = await register("Bob Campus", "bob@example.edu");
   const carol = await register("Carol Campus", "carol@example.edu");
+  const dave = await register("Dave Campus", "dave@example.edu");
 
-  const people = await request("/api/people?q=Alice", { cookie: bob.cookie });
+  const people = await request("/api/people?q=@alice_campus", { cookie: bob.cookie });
   assert.equal(people.response.status, 200);
   assert.equal(people.body.people[0].id, alice.user.id);
+  assert.equal(people.body.people[0].username, "alice_campus");
 
   const profile = await request(`/api/people/${alice.user.id}`, { cookie: bob.cookie });
   assert.equal(profile.response.status, 200);
@@ -121,6 +123,38 @@ test("users can browse profiles, follow, see posts, and exchange private DMs", a
   const conversations = await request("/api/messages/conversations", { cookie: bob.cookie });
   assert.equal(conversations.body.conversations.length, 1);
   assert.equal(conversations.body.conversations[0].id, alice.user.id);
+
+  const createdGroup = await request("/api/groups", {
+    cookie: alice.cookie,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: "Campus Crew", memberIds: [bob.user.id, carol.user.id] })
+  });
+  assert.equal(createdGroup.response.status, 201);
+  const groupId = createdGroup.body.group.id;
+  const bobGroups = await request("/api/groups", { cookie: bob.cookie });
+  assert.equal(bobGroups.body.groups[0].id, groupId);
+
+  const groupMessage = await request(`/api/groups/${groupId}/messages`, {
+    cookie: bob.cookie,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ body: "Hello group" })
+  });
+  assert.equal(groupMessage.response.status, 201);
+  const groupDetails = await request(`/api/groups/${groupId}`, { cookie: alice.cookie });
+  assert.equal(groupDetails.body.messages.length, 1);
+  assert.equal(groupDetails.body.messages[0].body, "Hello group");
+  assert.equal(groupDetails.body.messages[0].sender_name, "Bob Campus");
+  const outsiderRead = await request(`/api/groups/${groupId}`, { cookie: dave.cookie });
+  assert.equal(outsiderRead.response.status, 404);
+  const outsiderSend = await request(`/api/groups/${groupId}/messages`, {
+    cookie: dave.cookie,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ body: "Not allowed" })
+  });
+  assert.equal(outsiderSend.response.status, 404);
 
   const checkout = await request("/api/me/pro/checkout", { cookie: alice.cookie, method: "POST" });
   assert.equal(checkout.response.status, 503);

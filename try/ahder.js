@@ -46,6 +46,7 @@ const toast = document.getElementById("toast");
     const savedStorageKey = "ahder-saved-posts-v1";
     let userProfile = {
       name: "Alex Morgan",
+      username: "",
       email: "",
       university: "Northwood University",
       major: "Design & Media",
@@ -163,6 +164,15 @@ const toast = document.getElementById("toast");
       modalCard.replaceChildren();
     }
 
+    function closeMobileNavigation() {
+      const rail = document.getElementById("leftRail");
+      const trigger = document.querySelector('[data-action="mobileMenu"]');
+      if (!rail || !trigger) return;
+      rail.classList.remove("mobile-open");
+      trigger.setAttribute("aria-expanded", "false");
+      trigger.setAttribute("aria-label", "Open navigation menu");
+    }
+
     function openInviteLink(url) {
       openModal("Invite friends to Ahder", `
         <p class="page-description">Share this link so your friends can join your campus community.</p>
@@ -263,6 +273,7 @@ const toast = document.getElementById("toast");
           method: "POST",
           body: JSON.stringify({
             name: String(data.get("name")).trim(),
+            username: String(data.get("username")).trim().toLowerCase(),
             email: String(data.get("email")).trim(),
             password: String(data.get("password"))
           })
@@ -547,7 +558,7 @@ const toast = document.getElementById("toast");
             ${result.people.length ? result.people.map((person) => `
               <div class="person">
                 <img class="avatar avatar-lg" src="${escapeHTML(person.avatar_url || defaultAvatar)}" alt="">
-                <button class="person-info person-profile-link" type="button" data-open-profile="${escapeHTML(person.id)}"><strong>${escapeHTML(person.name)}</strong><small>${escapeHTML([person.major, person.university].filter(Boolean).join(" · ") || "Ahder student")}</small></button>
+                <button class="person-info person-profile-link" type="button" data-open-profile="${escapeHTML(person.id)}"><strong>${escapeHTML(person.name)}</strong><small>@${escapeHTML(person.username || "")}${[person.major, person.university].filter(Boolean).length ? ` · ${escapeHTML([person.major, person.university].filter(Boolean).join(" · "))}` : ""}</small></button>
                 <button class="follow-button ${person.following ? "following" : ""}" data-user-id="${escapeHTML(person.id)}" type="button" aria-label="${person.following ? "Unfollow" : "Follow"} ${escapeHTML(person.name)}" aria-pressed="${person.following}">${person.following ? "✓" : "+"}</button>
               </div>`).join("") : `<p class="page-description">No other students have joined yet. Invite a friend to create an account and connect here.</p>`}
           </div>`;
@@ -714,8 +725,10 @@ const toast = document.getElementById("toast");
     let currentPostMenu = null;
 
     let activeConversationId = null;
+    let activeConversationType = "direct";
+    let selectedGroupMembers = null;
 
-    async function showMessagesPage(userId = activeConversationId) {
+    async function showMessagesPage(conversationId = activeConversationId, conversationType = activeConversationType) {
       currentPage = "Messages";
       activeCommunity = "";
       pageView.hidden = false;
@@ -726,45 +739,69 @@ const toast = document.getElementById("toast");
       feed.querySelectorAll(".post").forEach((post) => { post.hidden = true; });
       pageView.innerHTML = `<h1 class="page-heading">Messages 💬</h1><p class="page-description">Private conversations with Ahder students.</p><p class="page-description">Loading conversations…</p>`;
       try {
-        const result = await apiRequest("/api/messages/conversations");
-        const selectedId = userId || result.conversations[0]?.id || null;
+        const [directResult, groupResult] = await Promise.all([
+          apiRequest("/api/messages/conversations"),
+          apiRequest("/api/groups")
+        ]);
+        const direct = directResult.conversations;
+        const groups = groupResult.groups;
+        const selectedType = conversationId ? conversationType : (direct.length ? "direct" : "group");
+        const selectedId = conversationId || direct[0]?.id || groups[0]?.id || null;
         if (!selectedId) {
           activeConversationId = null;
-          renderMessagesPage(result.conversations, null);
+          activeConversationType = "direct";
+          renderMessagesPage(direct, groups, null, "direct");
           return;
         }
-        const conversation = await apiRequest(`/api/messages/${encodeURIComponent(selectedId)}`);
+        const conversation = selectedType === "group"
+          ? await apiRequest(`/api/groups/${encodeURIComponent(selectedId)}`)
+          : await apiRequest(`/api/messages/${encodeURIComponent(selectedId)}`);
         activeConversationId = selectedId;
-        renderMessagesPage(result.conversations, conversation);
+        activeConversationType = selectedType;
+        renderMessagesPage(direct, groups, conversation, selectedType);
       } catch (error) {
         pageView.innerHTML = `<h1 class="page-heading">Messages 💬</h1><p class="page-description">Could not load messages: ${escapeHTML(error.message)}</p>`;
       }
     }
 
-    function renderMessagesPage(conversations, conversation) {
+    function renderMessagesPage(conversations, groups, conversation, conversationType) {
       const partner = conversation?.partner;
+      const group = conversation?.group;
       const contacts = conversations.slice();
       if (partner && !contacts.some((contact) => contact.id === partner.id)) contacts.unshift(partner);
+      const groupContacts = groups.slice();
+      if (group && !groupContacts.some((item) => item.id === group.id)) {
+        groupContacts.unshift({ ...group, memberCount: conversation.members.length });
+      }
+      const messages = conversationType === "group" ? conversation?.messages || [] : conversation?.messages || [];
       pageView.innerHTML = `
         <h1 class="page-heading">Messages 💬</h1>
-        <p class="page-description">Private conversations with Ahder students.</p>
+        <p class="page-description">Private messages and group chats.</p>
         <div class="card message-layout">
           <div class="message-contacts" aria-label="Conversations">
+            <button class="primary-button group-chat-create" type="button" data-action="createGroupChat">New group chat</button>
+            <p class="message-section-label">Direct messages</p>
             ${contacts.map((contact) => `
-              <button class="message-contact ${contact.id === partner?.id ? "active" : ""}" type="button" data-message-user="${escapeHTML(contact.id)}">
+              <button class="message-contact ${conversationType === "direct" && contact.id === partner?.id ? "active" : ""}" type="button" data-message-contact-id="${escapeHTML(contact.id)}">
                 <img class="avatar avatar-sm" src="${escapeHTML(contact.avatar || defaultAvatar)}" alt="">
                 <span><strong>${escapeHTML(contact.name)}</strong><small>${escapeHTML(contact.lastMessage || "Start a conversation")}</small></span>
               </button>`).join("")}
-            ${!contacts.length ? `<p class="page-description">No conversations yet. Find a student to start a DM.</p>` : ""}
+            ${!contacts.length ? `<p class="page-description">No direct messages yet.</p>` : ""}
+            <p class="message-section-label">Group chats</p>
+            ${groupContacts.map((item) => `
+              <button class="message-contact ${conversationType === "group" && item.id === group?.id ? "active" : ""}" type="button" data-group-chat-id="${escapeHTML(item.id)}">
+                <span class="group-chat-avatar" aria-hidden="true">✦</span>
+                <span><strong>${escapeHTML(item.name)}</strong><small>${escapeHTML(item.lastMessage || `${item.memberCount} members`)}</small></span>
+              </button>`).join("")}
+            ${!groupContacts.length ? `<p class="page-description">No group chats yet.</p>` : ""}
             <button class="secondary-button" type="button" data-action="people">Find people</button>
           </div>
-          ${partner ? `<section class="message-chat" aria-label="Conversation with ${escapeHTML(partner.name)}">
+          ${partner || group ? `<section class="message-chat" aria-label="${group ? "Group chat" : `Conversation with ${escapeHTML(partner.name)}`}">
             <header class="chat-heading">
-              <img class="avatar avatar-sm" src="${escapeHTML(partner.avatar || defaultAvatar)}" alt="">
-              <button class="author-name" type="button" data-open-profile="${escapeHTML(partner.id)}">${escapeHTML(partner.name)}</button>
+              ${group ? `<span class="group-chat-avatar" aria-hidden="true">✦</span><span><strong>${escapeHTML(group.name)}</strong><small>${conversation.members.map((member) => `@${escapeHTML(member.username)}`).join(", ")}</small></span>` : `<img class="avatar avatar-sm" src="${escapeHTML(partner.avatar || defaultAvatar)}" alt=""><button class="author-name" type="button" data-open-profile="${escapeHTML(partner.id)}">${escapeHTML(partner.name)}</button>`}
             </header>
-            <div class="chat-body">${conversation.messages.map((message) => `
-              <div class="chat-bubble ${message.sender_id === userProfile.id ? "mine" : ""}">${escapeHTML(message.body)}</div>`).join("")}</div>
+            <div class="chat-body">${messages.map((message) => `
+              <div class="chat-message ${message.sender_id === userProfile.id ? "mine" : ""}">${group && message.sender_id !== userProfile.id ? `<strong>${escapeHTML(message.sender_name)}</strong>` : ""}<div class="chat-bubble ${message.sender_id === userProfile.id ? "mine" : ""}">${escapeHTML(message.body)}</div></div>`).join("")}</div>
             <form class="chat-form" id="chatForm">
               <input name="message" aria-label="Write a message" placeholder="Write a message..." maxlength="1000" required>
               <button class="primary-button" type="submit">Send</button>
@@ -773,6 +810,29 @@ const toast = document.getElementById("toast");
         </div>`;
       const body = pageView.querySelector(".chat-body");
       if (body) body.scrollTop = body.scrollHeight;
+    }
+
+    function openGroupChatComposer() {
+      selectedGroupMembers = new Map();
+      openModal("Create a group chat", `
+        <form id="groupChatForm">
+          <label class="auth-field"><span>Group name</span><input name="name" maxlength="60" minlength="2" placeholder="Study group" required></label>
+          <label class="auth-field"><span>Find people by username or name</span><input id="groupMemberSearch" type="search" autocomplete="off" placeholder="Search students..."></label>
+          <div class="group-member-results" id="groupMemberResults"></div>
+          <div class="group-selected-members" id="groupSelectedMembers"></div>
+          <p class="page-description">Choose at least two other people for a group of three or more.</p>
+          <button class="primary-button" type="submit">Create group</button>
+        </form>`);
+      modalCard.querySelector("#groupMemberSearch").focus();
+    }
+
+    function renderSelectedGroupMembers() {
+      const container = modalCard.querySelector("#groupSelectedMembers");
+      if (!container) return;
+      container.innerHTML = [...selectedGroupMembers.entries()].map(([id, person]) => `
+        <button class="group-member-chip" type="button" data-group-person-id="${escapeHTML(id)}" data-name="${escapeHTML(person.name)}" data-username="${escapeHTML(person.username)}">
+          @${escapeHTML(person.username)} ×
+        </button>`).join("");
     }
 
     async function showProfilePage(userId = userProfile.id) {
@@ -820,6 +880,7 @@ const toast = document.getElementById("toast");
             <div class="profile-stats"><span><strong>${profile.followerCount}</strong> followers</span><span><strong>${profile.followingCount}</strong> following</span><span><strong>${profile.isPro ? "Pro" : "Free"}</strong> account</span></div>
             <div class="profile-fields">
               <label class="auth-field"><span>Full name</span><input name="name" value="${safeName}" maxlength="40" required></label>
+              <label class="auth-field"><span>Username</span><input name="username" value="${escapeHTML(profile.username || "")}" minlength="3" maxlength="24" pattern="[A-Za-z0-9_]+" required></label>
               <label class="auth-field"><span>University email</span><input type="email" value="${escapeHTML(userProfile.email)}" readonly></label>
               <label class="auth-field"><span>University</span><input name="university" value="${safeUniversity}" maxlength="70"></label>
               <label class="auth-field"><span>Major / course</span><input name="major" value="${safeMajor}" maxlength="70"></label>
@@ -841,6 +902,7 @@ const toast = document.getElementById("toast");
             <div class="profile-edit-avatar"><img class="avatar" src="${safeAvatar}" alt="${safeName} profile photo"></div>
             <div class="profile-cover"></div>
             <h2>${safeName}${profile.isPro ? ` <span class="pro-badge">PRO</span>` : ""}</h2>
+            <p class="page-description">@${escapeHTML(profile.username || "")}</p>
             <p class="page-description">${safeMajor}${safeMajor && safeUniversity ? " · " : ""}${safeUniversity}</p>
             <p>${safeBio || "This student hasn't added a bio yet."}</p>
             <div class="profile-stats"><span><strong data-profile-followers>${profile.followerCount}</strong> followers</span><span><strong>${profile.followingCount}</strong> following</span></div>
@@ -901,7 +963,13 @@ const toast = document.getElementById("toast");
           } else {
             openInviteLink(shareData.url);
           }
+        } else if (actionName === "mobileMenu") {
+          const rail = document.getElementById("leftRail");
+          const isOpen = rail.classList.toggle("mobile-open");
+          action.setAttribute("aria-expanded", String(isOpen));
+          action.setAttribute("aria-label", isOpen ? "Close navigation menu" : "Open navigation menu");
         } else if (actionName === "profile") {
+          closeMobileNavigation();
           document.querySelectorAll(".nav-link").forEach((item) => item.classList.toggle("active", item.dataset.nav === "Profile"));
           showProfilePage();
         } else if (actionName === "notifications") {
@@ -912,6 +980,7 @@ const toast = document.getElementById("toast");
           writeStorage("ahder-theme-v1", nextTheme);
           showToast(`${nextTheme === "dark" ? "Dark" : "Light"} mode enabled.`);
         } else if (actionName === "people") {
+          closeMobileNavigation();
           document.querySelectorAll(".nav-link").forEach((item) => item.classList.remove("active"));
           openPeoplePage();
         } else if (actionName === "proUpgrade") {
@@ -1079,6 +1148,7 @@ const toast = document.getElementById("toast");
       const link = event.target.closest("[data-nav]");
       if (link) {
         event.preventDefault();
+        closeMobileNavigation();
         document.querySelectorAll(".nav-link").forEach((item) => {
           item.classList.toggle("active", item.dataset.nav === link.dataset.nav);
         });
@@ -1094,6 +1164,7 @@ const toast = document.getElementById("toast");
       const group = event.target.closest("[data-community]");
       if (group) {
         event.preventDefault();
+        closeMobileNavigation();
         document.querySelectorAll(".nav-link").forEach((item) => item.classList.remove("active"));
         searchInput.value = "";
         showFeedPage("Community", group.dataset.community);
@@ -1111,6 +1182,7 @@ const toast = document.getElementById("toast");
       const trend = event.target.closest("[data-trend]");
       if (trend) {
         event.preventDefault();
+        closeMobileNavigation();
         document.querySelectorAll(".nav-link").forEach((item) => item.classList.toggle("active", item.dataset.nav === "Explore"));
         showFeedPage("Explore");
         searchInput.value = trend.dataset.trend;
@@ -1145,8 +1217,27 @@ const toast = document.getElementById("toast");
           });
       }
 
-      const messageContact = event.target.closest("[data-message-contact]");
-      if (messageContact) showMessagesPage(Number(messageContact.dataset.messageContact));
+      const messageContact = event.target.closest("[data-message-contact-id]");
+      if (messageContact) showMessagesPage(messageContact.dataset.messageContactId, "direct");
+
+      const groupContact = event.target.closest("[data-group-chat-id]");
+      if (groupContact) showMessagesPage(groupContact.dataset.groupChatId, "group");
+
+      const groupPerson = event.target.closest("[data-group-person-id]");
+      if (groupPerson && selectedGroupMembers) {
+        const memberId = groupPerson.dataset.groupPersonId;
+        if (selectedGroupMembers.has(memberId)) selectedGroupMembers.delete(memberId);
+        else selectedGroupMembers.set(memberId, {
+          name: groupPerson.dataset.name,
+          username: groupPerson.dataset.username
+        });
+        renderSelectedGroupMembers();
+        modalCard.querySelectorAll(".group-member-option").forEach((option) => {
+          option.classList.toggle("selected", selectedGroupMembers.has(option.dataset.groupPersonId));
+        });
+      }
+
+      if (event.target.closest('[data-action="createGroupChat"]')) openGroupChatComposer();
 
       const likeButton = event.target.closest(".like-button");
       if (likeButton) {
@@ -1249,7 +1340,15 @@ const toast = document.getElementById("toast");
       if (messageLink) {
         event.preventDefault();
         document.querySelectorAll(".nav-link").forEach((item) => item.classList.toggle("active", item.dataset.nav === "Messages"));
-        showMessagesPage(messageLink.dataset.messageUser);
+        showMessagesPage(messageLink.dataset.messageUser, "direct");
+      }
+      if (event.target.closest("[data-nav]")) closeMobileNavigation();
+      if (event.target === modalBackdrop) closeModal();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        closeMobileNavigation();
+        if (!modalBackdrop.hidden) closeModal();
       }
     });
 
@@ -1269,6 +1368,12 @@ const toast = document.getElementById("toast");
     });
 
     const searchInput = document.getElementById("searchInput");
+    searchInput.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      closeMobileNavigation();
+      openPeoplePage();
+    });
     searchInput.addEventListener("input", () => {
       const query = searchInput.value.trim().toLowerCase().replace(/^#/, "");
       if (currentPage === "Events") {
@@ -1310,11 +1415,14 @@ const toast = document.getElementById("toast");
         const message = input.value.trim();
         if (!message || !activeConversationId) return;
         try {
-          await apiRequest(`/api/messages/${encodeURIComponent(activeConversationId)}`, {
+          const endpoint = activeConversationType === "group"
+            ? `/api/groups/${encodeURIComponent(activeConversationId)}/messages`
+            : `/api/messages/${encodeURIComponent(activeConversationId)}`;
+          await apiRequest(endpoint, {
             method: "POST",
             body: JSON.stringify({ body: message })
           });
-          await showMessagesPage(activeConversationId);
+          await showMessagesPage(activeConversationId, activeConversationType);
         } catch (error) {
           showToast(`Could not send your message: ${error.message}`);
         }
@@ -1327,6 +1435,7 @@ const toast = document.getElementById("toast");
             method: "PATCH",
             body: JSON.stringify({
               name: String(data.get("name")).trim(),
+              username: String(data.get("username")).trim().toLowerCase(),
               university: String(data.get("university")).trim(),
               major: String(data.get("major")).trim(),
               bio: String(data.get("bio")).trim()
@@ -1339,6 +1448,28 @@ const toast = document.getElementById("toast");
         } catch (error) {
           showToast(`Could not save profile: ${error.message}`);
         }
+      }
+    });
+
+    modalCard.addEventListener("input", async (event) => {
+      if (event.target.id !== "groupMemberSearch") return;
+      const query = event.target.value.trim();
+      const results = modalCard.querySelector("#groupMemberResults");
+      if (!results) return;
+      if (!query) {
+        results.replaceChildren();
+        return;
+      }
+      try {
+        const response = await apiRequest(`/api/people?q=${encodeURIComponent(query)}`);
+        results.innerHTML = response.people.map((person) => `
+          <button class="group-member-option ${selectedGroupMembers.has(person.id) ? "selected" : ""}" type="button"
+            data-group-person-id="${escapeHTML(person.id)}" data-name="${escapeHTML(person.name)}" data-username="${escapeHTML(person.username)}">
+            <img class="avatar avatar-sm" src="${escapeHTML(person.avatar_url || defaultAvatar)}" alt="">
+            <span><strong>${escapeHTML(person.name)}</strong><small>@${escapeHTML(person.username)}</small></span>
+          </button>`).join("") || `<p class="page-description">No matching students found.</p>`;
+      } catch (error) {
+        results.innerHTML = `<p class="page-description">Could not search students: ${escapeHTML(error.message)}</p>`;
       }
     });
 
@@ -1367,6 +1498,24 @@ const toast = document.getElementById("toast");
           showToast("Your comment was added.");
         } catch (error) {
           showToast(`Could not add comment: ${error.message}`);
+        }
+      } else if (event.target.id === "groupChatForm") {
+        const name = String(new FormData(event.target).get("name")).trim();
+        if (selectedGroupMembers.size < 2) {
+          showToast("Select at least two people to create a group chat.");
+          return;
+        }
+        try {
+          const result = await apiRequest("/api/groups", {
+            method: "POST",
+            body: JSON.stringify({ name, memberIds: [...selectedGroupMembers.keys()] })
+          });
+          selectedGroupMembers = null;
+          closeModal();
+          await showMessagesPage(result.group.id, "group");
+          showToast("Your group chat is ready.");
+        } catch (error) {
+          showToast(`Could not create group chat: ${error.message}`);
         }
       } else if (event.target.id === "pollComposerForm") {
         const data = new FormData(event.target);
